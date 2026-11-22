@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090e1a">
+  <meta name="description" content="Dashboard offline para análise manual de força e fraqueza de oito moedas em cinco timeframes.">
+  <title>ATLAS FX — Painel de Força Cambial</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090e19;
+      --surface: #101727;
+      --surface-raised: #141e30;
+      --surface-inset: #0c1321;
+      --stroke: #263348;
+      --stroke-soft: #1d2a3d;
+      --text: #f2f6ff;
+      --muted: #94a4be;
+      --dim: #65758e;
+      --teal: #3de8bf;
+      --teal-soft: rgba(61, 232, 191, .10);
+      --rose: #ff718b;
+      --rose-soft: rgba(255, 113, 139, .105);
+      --blue: #8498ff;
+      --blue-soft: rgba(132, 152, 255, .11);
+      --amber: #ffc77e;
+      --radius: 19px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; min-width: 320px; background: var(--bg); color: var(--text);
+      font: 400 14px/1.55 Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background-image: radial-gradient(ellipse 900px 380px at 20% -190px, rgba(69, 110, 215, .15), transparent 85%),
+                        radial-gradient(ellipse 750px 310px at 94% 20px, rgba(16, 151, 164, .09), transparent 80%);
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--blue); outline-offset: 3px;
+    }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    .shell { max-width: 1510px; margin: 0 auto; padding: 0 32px 75px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:22px; min-height:89px; border-bottom:1px solid var(--stroke-soft); }
+    .brand { display:flex; align-items:center; gap:13px; text-decoration:none; color:inherit; }
+    .brand-mark { width:43px; height:43px; display:grid; place-items:center; border:1px solid rgba(98,230,215,.38); border-radius:13px; background:linear-gradient(135deg,#1e4a64,#143c45 45%, #151f39); box-shadow: 0 8px 20px rgba(0,0,0,.15); }
+    .brand-mark svg { width:28px; height:28px; }
+    .brand-words { display:flex; flex-direction:column; line-height:1.06; letter-spacing:.02em; }
+    .brand-words strong { font-size:17px; font-weight:820; letter-spacing:.14em; }
+    .brand-words small { font-size:9px; font-weight:680; color:var(--muted); letter-spacing:.23em; margin-top:6px; }
+    .top-right { display:flex; align-items:center; justify-content:flex-end; gap:19px; }
+    .top-online { display:flex; align-items:center; gap:9px; padding:8px 12px; border:1px solid var(--stroke); border-radius:100px; background:rgba(255,255,255,.025); font-weight:650; font-size:11px; letter-spacing:.06em; color:#b1bfd5; white-space:nowrap; }
+    .top-online .status-dot { width:7px; height:7px; border-radius:50%; background:var(--teal); box-shadow: 0 0 0 3px rgba(61,232,191,.1), 0 0 14px rgba(61,232,191,.65); }
+    .clock { color:var(--muted); font-variant-numeric: tabular-nums; text-align:right; font-size:12px; }
+    .intro { display:flex; align-items:flex-end; justify-content:space-between; gap:30px; padding:43px 0 26px; }
+    .eyebrow { display:flex; gap:8px; align-items:center; color:var(--teal); font-size:10px; font-weight:850; letter-spacing:.19em; text-transform:uppercase; }
+    .eyebrow::before { content:""; height:2px; width:18px; background:var(--teal); border-radius:3px; }
+    .intro h1 { margin:10px 0 7px; letter-spacing:-.043em; font-size:clamp(28px,3.1vw,43px); line-height:1.15; font-weight:780; }
+    .intro h1 span { color:var(--teal); }
+    .intro p { color:var(--muted); margin:0; font-size:13px; max-width:700px; }
+    .toolbar { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; padding-bottom:3px; }
+    .btn { padding:10px 13px; min-height:39px; border:1px solid var(--stroke); border-radius:10px; background:#172135; color:#d7e2f5; font-size:12px; font-weight:730; display:inline-flex; align-items:center; gap:8px; justify-content:center; white-space:nowrap; transition:background .18s,border-color .18s,transform .18s; }
+    .btn:hover { background:#222f49; border-color:#3e536e; transform:translateY(-1px); }
+    .btn svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+    .btn-primary { background:linear-gradient(135deg,#38d8b4,#21bda6); border-color:transparent; color:#082922; box-shadow:0 4px 18px rgba(26,185,155,.16); }
+    .btn-primary:hover { background:linear-gradient(135deg,#67f2d4,#3fdcc3); border-color:transparent; }
+    .btn-danger { color:#ffc4cd; }
+    .btn-danger:hover { background:#38202d; border-color:#774354; }
+    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:13px; margin-bottom:28px; }
+    .metric { border:1px solid var(--stroke); border-radius:var(--radius); padding:20px 21px 17px; min-height:147px; background:linear-gradient(155deg,#151e30 0%,#101827 70%); position:relative; overflow:hidden; }
+    .metric::after { content:""; position:absolute; width:115px; height:115px; border-radius:50%; top:-74px; right:-40px; border:20px solid currentColor; opacity:.042; }
+    .metric.positive { color:var(--teal); } .metric.negative { color:var(--rose); } .metric.violet { color:var(--blue); } .metric.gold { color:var(--amber); }
+    .metric-label { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11px; letter-spacing:.105em; text-transform:uppercase; font-weight:800; }
+    .metric-label .sign { font-size:15px; font-weight:750; color:inherit; }
+    .metric-value { margin-top:13px; display:flex; align-items:baseline; flex-wrap:wrap; gap:9px; font-size:33px; font-weight:850; letter-spacing:-.05em; line-height:1.1; font-variant-numeric:tabular-nums; }
+    .metric-value small { font-size:15px; letter-spacing:-.01em; font-weight:750; }
+    .metric-empty { color:#697c97; font-size:24px; letter-spacing:-.035em; }
+    .metric-sub { color:var(--muted); margin-top:8px; font-size:11px; line-height:1.4; }
+    .meter { height:4px; border-radius:100px; overflow:hidden; background:#27354a; margin-top:14px; }
+    .meter span { display:block; width:0; height:100%; background:linear-gradient(90deg,#607aff,var(--teal)); transition:width .25s; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:0 0 16px; }
+    .section-head h2 { font-size:18px; font-weight:780; letter-spacing:-.023em; margin:0; }
+    .section-head p { color:var(--muted); font-size:12px; margin:3px 0 0; }
+    .section-count { color:var(--muted); font-size:11px; font-weight:750; border:1px solid var(--stroke); border-radius:99px; padding:7px 12px; white-space:nowrap; }
+    .main-grid { display:grid; grid-template-columns:minmax(0,1fr) 350px; gap:22px; align-items:start; }
+    .currency-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .currency-card { min-width:0; border:1px solid var(--stroke); border-radius:var(--radius); padding:19px; background:linear-gradient(150deg,rgba(20,30,47,.97),rgba(13,21,34,.97)); position:relative; transition:border-color .2s,box-shadow .2s; }
+    .currency-card:hover { border-color:#3a4b62; }
+    .currency-card[data-trend="positive"] { box-shadow:inset 0 2px 0 rgba(61,232,191,.42); }
+    .currency-card[data-trend="negative"] { box-shadow:inset 0 2px 0 rgba(255,113,139,.42); }
+    .currency-top { display:flex; align-items:flex-start; gap:13px; min-width:0; }
+    .coin { width:48px; height:48px; border-radius:14px; background:linear-gradient(135deg,#243a50,#1a283e); border:1px solid #3b4c60; color:#bcd4ef; font-size:14px; font-weight:860; display:grid;place-items:center; letter-spacing:.025em; flex:none; }
+    .currency-ident { flex:1; min-width:0; }
+    .currency-ident h3 { margin:0; font-size:21px; line-height:1.15; letter-spacing:-.04em; font-weight:820; }
+    .currency-label { font-weight:inherit; letter-spacing:inherit; }
+    .currency-ident p { margin:3px 0 0; color:var(--muted); font-size:11px; overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    .scorebox { text-align:right; flex:none; }
+    .scorebox strong { font-size:19px; line-height:1.2; font-variant-numeric:tabular-nums; font-weight:830; display:block; }
+    .scorebox small { display:block; color:var(--dim); font-size:10px; font-weight:720; margin-top:2px; }
+    .score-positive { color:var(--teal); } .score-negative { color:var(--rose); } .score-zero { color:#aab8cc; }
+    .currency-meta { margin:17px 0 12px; display:flex; align-items:center; justify-content:space-between; gap:9px; }
+    .trend-tag { border:1px solid #324055; border-radius:6px; font-size:9px; letter-spacing:.095em; font-weight:850; padding:5px 8px; background:#18253a; color:#a5b5cf; white-space:nowrap; }
+    .trend-tag.positive { color:var(--teal); border-color:rgba(61,232,191,.23); background:var(--teal-soft); }
+    .trend-tag.negative { color:var(--rose); border-color:rgba(255,113,139,.27); background:var(--rose-soft); }
+    .trend-tag.neutral { color:#b7c0e8; border-color:rgba(132,152,255,.27); background:var(--blue-soft); }
+    .divergence { color:var(--dim); font-size:10px; line-height:1.25; text-align:right; }
+    .divergence.alert { color:#ffd096; }
+    .tf-table { display:grid; gap:7px; }
+    .tf-row { display:flex; align-items:center; gap:8px; min-width:0; }
+    .tf-name { width:41px; flex:none; color:#c0cde2; font-size:12px; font-weight:820; letter-spacing:.045em; }
+    .tf-choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:4px; min-width:0; flex:1; border-radius:10px; background:#0a1220; border:1px solid #1d2b3e; }
+    .tf-button { padding:8px 4px; min-height:33px; min-width:0; border:1px solid transparent; border-radius:6px; background:transparent; color:#7789a3; font-weight:810; font-size:9px; letter-spacing:.018em; transition:background .13s, color .13s, border-color .13s; }
+    .tf-button:hover { background:#25334a; color:#f0f4ff; }
+    .tf-button[aria-pressed="true"][data-choice="F"] { color:#75f7d4; background:#15463f; border-color:#2b8d7c; }
+    .tf-button[aria-pressed="true"][data-choice="W"] { color:#ffafbd; background:#492635; border-color:#884457; }
+    .tf-button[aria-pressed="true"][data-choice="N"] { color:#c3cdff; background:#313858; border-color:#58639a; }
+    .notes-top { display:flex; align-items:center; justify-content:space-between; gap:9px; margin:16px 0 7px; color:#b1bfd4; font-size:10px; font-weight:780; letter-spacing:.07em; text-transform:uppercase; }
+    .notes-top small { color:var(--dim); font-size:10px; font-weight:600; letter-spacing:normal; text-transform:none; }
+    .comment { width:100%; display:block; background:#0b1422; border:1px solid #253348; border-radius:10px; color:#dfe8f5; padding:11px 12px; min-height:73px; max-height:350px; resize:vertical; outline:none; font-size:12px; line-height:1.5; transition:border-color .17s,background .17s; }
+    .comment:focus { border-color:#5f92bc; background:#101b2d; }
+    .comment::placeholder { color:#5c6d86; }
+    .card-footer { margin-top:11px; display:flex; align-items:center; justify-content:space-between; color:var(--dim); font-size:10px; }
+    .mini-progress { width:55px; height:4px; border-radius:10px; background:#29364a; overflow:hidden; }
+    .mini-progress span { display:block; width:0; height:100%; border-radius:10px; background:var(--blue); transition:width .2s; }
+    .side-column { position:sticky; top:18px; display:grid; gap:16px; }
+    .panel { background:linear-gradient(155deg,#141e2f,#101827); border:1px solid var(--stroke); border-radius:var(--radius); padding:20px; }
+    .panel-head { display:flex;justify-content:space-between;align-items:center;gap:8px; }
+    .panel-head h2 { font-size:15px; letter-spacing:-.015em; margin:0; font-weight:800; }
+    .live-pill { display:inline-flex; align-items:center; gap:6px; color:var(--teal); font-size:9px; letter-spacing:.11em; font-weight:830; }
+    .live-pill::before { content:""; width:6px; height:6px; border-radius:100%;background:var(--teal);box-shadow:0 0 10px rgba(61,232,191,.5); }
+    .panel-descr { margin:5px 0 22px; font-size:11px; color:var(--muted); }
+    .rank-list { display:grid; gap:14px; }
+    .rank-item { display:grid; grid-template-columns:19px 37px 1fr 41px; gap:8px; align-items:center; }
+    .rank-num { color:#60728b; font-size:10px; font-weight:750; }
+    .rank-code { font-size:12px; color:#dce5f3; font-weight:820; }
+    .rank-track { position:relative; height:9px; border-radius:4px; background:#202b3c; overflow:hidden; }
+    .rank-track::after { content:""; width:1px; height:100%; position:absolute; left:50%; top:0; background:#64728b; opacity:.65; z-index:2; }
+    .rank-fill { height:100%; position:absolute; top:0; border-radius:3px; background:var(--blue); transition:left .25s,width .25s,background .25s; }
+    .rank-fill.plus { background:linear-gradient(90deg,#1e947d,#55efd0); }
+    .rank-fill.minus { background:linear-gradient(90deg,#ff718b,#b74e69); }
+    .rank-score { font-size:11px; font-weight:800; text-align:right; font-variant-numeric:tabular-nums; }
+    .rank-coverage { grid-column:3 / 5; margin-top:-8px; color:#677891; font-size:9px; }
+    .rank-tie { color:#ffc77e; font-weight:700; }
+    .ranking-priority { margin:13px 0 0; padding:10px 11px; border:1px solid var(--stroke-soft); border-radius:10px; background:rgba(132,152,255,.045); color:#aab9d2; font-size:10px; line-height:1.6; }
+    .ranking-priority strong { color:#dbe6f8; }
+    .rank-legend { margin-top:22px; border-top:1px solid var(--stroke-soft); padding-top:13px; display:flex; justify-content:space-between; font-size:10px; color:var(--muted); }
+    .rank-legend b { font-weight:740; }
+    .annotation { margin-top:18px; padding:12px; background:#0c1626; border:1px solid #27374c; border-radius:11px; font-size:11px; color:#a2b3cc; line-height:1.6; }
+    .annotation strong { color:#e8f0ff; }
+    .panel-info { margin:0 0 12px;color:var(--muted);font-size:11px; }
+    details { border-top:1px solid var(--stroke-soft);padding-top:14px;margin-top:13px; }
+    details summary { list-style:none; cursor:pointer; font-size:12px; font-weight:770; color:#d8e2f3; display:flex; align-items:center; justify-content:space-between; }
+    details summary::-webkit-details-marker { display:none; }
+    details summary::after { content:"+"; font-size:19px; color:var(--muted);font-weight:400; }
+    details[open] summary::after { content:"−"; }
+    .priority-list { display:grid;gap:12px;margin-top:18px; }
+    .priority-row { display:grid;grid-template-columns:20px 32px minmax(0,1fr) 42px;gap:10px;align-items:center; }
+    .priority-index { color:var(--dim);font-size:10px;font-weight:850; }
+    .priority-tf { font-size:11px;color:#e1e9fc;font-weight:840;letter-spacing:.04em; }
+    .priority-track { height:8px;border-radius:99px;background:#263348;overflow:hidden; }
+    .priority-fill { height:100%;border-radius:99px;background:linear-gradient(90deg,#4e7ad9,#58e9cb); }
+    .priority-value { font-size:11px;text-align:right;font-weight:850;color:#d4e4f8;font-variant-numeric:tabular-nums; }
+    .weight-note { margin:15px 0 0; font-size:10px; line-height:1.6; color:var(--muted); }
+    .fixed-priority { color:#77ebd1;font-size:9px;font-weight:850;letter-spacing:.1em;white-space:nowrap; }
+    .help-panel { display:flex; align-items:flex-start; gap:12px; }
+    .help-icon { width:31px; height:31px; flex:none; border-radius:9px; background:var(--blue-soft); color:#b1beff; display:grid;place-items:center; font-size:17px; font-weight:800; }
+    .help-panel h3 { font-size:12px; margin:0 0 5px; }
+    .help-panel p { margin:0;color:var(--muted);font-size:11px;line-height:1.65; }
+    .footnote { margin:33px 0 0; padding-top:18px; border-top:1px solid var(--stroke-soft); display:flex;justify-content:space-between;gap:20px;color:var(--dim);font-size:11px; }
+    .toast { position:fixed; bottom:25px; left:50%; z-index:20; transform:translate(-50%,20px); background:#1b3540; color:#dafff2; border:1px solid #377b74; border-radius:12px; box-shadow:0 12px 42px #0009; padding:11px 18px; font-size:12px; font-weight:720; opacity:0; pointer-events:none; transition:opacity .25s,transform .25s; }
+    .toast.visible { transform:translate(-50%,0);opacity:1; }
+    .sr-only { position:absolute!important; width:1px;height:1px; overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap; }
+    /* Identidade visual por moeda: cores fiéis ao modelo enviado. */
+    .currency-aud { --currency:#FFA500; --currency-rgb:255,165,0; --currency-ink:#101216; }
+    .currency-cad { --currency:#FF6347; --currency-rgb:255,99,71; --currency-ink:#FFFFFF; }
+    .currency-chf { --currency:#40E0D0; --currency-rgb:64,224,208; --currency-ink:#FFFFFF; }
+    .currency-eur { --currency:#1E90FF; --currency-rgb:30,144,255; --currency-ink:#FFFFFF; }
+    .currency-gbp { --currency:#BA55D3; --currency-rgb:186,85,211; --currency-ink:#FFFFFF; }
+    .currency-jpy { --currency:#FF00FF; --currency-rgb:255,0,255; --currency-ink:#FFFFFF; }
+    .currency-nzd { --currency:#FFD700; --currency-rgb:255,215,0; --currency-ink:#101216; }
+    .currency-usd { --currency:#32CD32; --currency-rgb:50,205,50; --currency-ink:#FFFFFF; }
+
+    /* Barra de atalhos inspirada nas etiquetas de cor da referência. */
+    .currency-quicknav {
+      display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:8px;
+      padding:10px; margin-bottom:16px; border:1px solid var(--stroke);
+      border-radius:14px; background:#0b1321;
+    }
+    .currency-tab {
+      display:grid; place-items:center; min-height:35px; padding:6px 4px;
+      color:var(--currency-ink); background:var(--currency);
+      text-decoration:none; font-size:12px; font-weight:850; letter-spacing:.035em;
+      border:1px solid rgba(255,255,255,.08); border-radius:7px;
+      box-shadow:0 3px 0 rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.24);
+      transition: transform .16s ease,box-shadow .16s ease,filter .16s ease;
+    }
+    .currency-tab:hover,.currency-tab:focus-visible {
+      transform:translateY(-2px); filter:brightness(1.09);
+      box-shadow:0 5px 14px rgba(var(--currency-rgb),.24),0 3px 0 rgba(0,0,0,.65);
+    }
+    .currency-tab:focus-visible {outline:2px solid #fff;outline-offset:2px;}
+
+    /* Cartão com brilho, traço superior e progresso na cor exclusiva da moeda. */
+    .currency-card {
+      overflow:hidden; scroll-margin-top:24px;
+      background:radial-gradient(ellipse at 2% -5%,rgba(var(--currency-rgb),.13),transparent 58%),
+                 linear-gradient(150deg,#161f30,#0d1522 85%);
+      border-color:rgba(var(--currency-rgb),.26);
+      transition:transform .2s,border-color .2s,box-shadow .2s;
+    }
+    .currency-card::before {
+      content:""; position:absolute; left:0; right:0; top:0; height:3px;
+      background:linear-gradient(90deg,var(--currency) 0%,rgba(var(--currency-rgb),.76) 45%,transparent 100%);
+      pointer-events:none;
+    }
+    .currency-card::after {
+      content:""; position:absolute; right:-72px; top:-94px;
+      width:205px; height:205px; border:1px solid rgba(var(--currency-rgb),.11);
+      border-radius:50%; pointer-events:none;
+      box-shadow:0 0 0 24px rgba(var(--currency-rgb),.024),0 0 0 54px rgba(var(--currency-rgb),.014);
+    }
+    .currency-card:hover { transform:translateY(-2px); border-color:rgba(var(--currency-rgb),.58); box-shadow:0 12px 36px rgba(0,0,0,.17); }
+    .currency-card:target { border-color:var(--currency); box-shadow:0 0 0 2px rgba(var(--currency-rgb),.3),0 16px 40px #0005; }
+    .currency-card[data-trend="positive"] { box-shadow:inset 0 -2px 0 rgba(61,232,191,.28); }
+    .currency-card[data-trend="negative"] { box-shadow:inset 0 -2px 0 rgba(255,113,139,.28); }
+    .currency-card[data-trend="positive"]:hover,.currency-card[data-trend="negative"]:hover { box-shadow:0 12px 36px rgba(0,0,0,.17); }
+    .coin.currency-badge {
+      width:63px; height:49px; border-radius:10px;
+      font-size:16px; font-weight:850; letter-spacing:.02em;
+      color:var(--currency-ink);
+      background:linear-gradient(155deg,rgba(255,255,255,.18),rgba(255,255,255,0) 57%),var(--currency);
+      border:1px solid rgba(255,255,255,.24);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 0 #080d16,0 8px 20px rgba(var(--currency-rgb),.19);
+      text-shadow:0 1px 1px rgba(0,0,0,.11);
+    }
+    .currency-ident h3.currency-title {
+      color:var(--currency); font-size:23px; letter-spacing:-.02em;
+      text-shadow:0 0 23px rgba(var(--currency-rgb),.18);
+    }
+    .currency-card .tf-name { color:rgba(223,231,246,.88); }
+    .currency-card .tf-choices { border-color:rgba(var(--currency-rgb),.12); }
+    .currency-card .comment:focus { border-color:var(--currency); box-shadow:0 0 0 3px rgba(var(--currency-rgb),.1); }
+    .currency-card .mini-progress span { background:var(--currency); box-shadow:0 0 8px rgba(var(--currency-rgb),.35); }
+    .rank-item { position:relative; }
+    .rank-code {color:var(--currency); text-shadow:0 0 12px rgba(var(--currency-rgb),.2); }
+    .currency-label { color:var(--currency); text-shadow:0 0 22px rgba(var(--currency-rgb),.2); }
+    @media (max-width:680px) {
+      .currency-quicknav {gap:5px;padding:7px;grid-template-columns:repeat(4,minmax(0,1fr));}
+      .currency-tab {min-height:31px;font-size:11px;}
+    }
+
+    /* Painel de sessões de bolsas — cores integradas às moedas */
+    .session-board { margin:-7px 0 28px; padding:18px 20px 15px; border:1px solid #304059; border-radius:var(--radius); background:linear-gradient(115deg,rgba(21,35,57,.98),rgba(13,23,38,.98)); box-shadow:0 14px 37px rgba(0,0,0,.10); }
+    .session-board-top { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:13px; margin-bottom:14px; }
+    .session-board-title { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+    .session-board-title h2 { font-size:16px; letter-spacing:-.02em; line-height:1.3; margin:0; font-weight:820; }
+    .session-live-tag { border:1px solid rgba(64,224,208,.27); background:rgba(64,224,208,.08); color:#71f1da; border-radius:100px; padding:3px 9px; font-size:9px; font-weight:820; letter-spacing:.07em; }
+    .session-board-sub { margin:4px 0 0; color:var(--muted); font-size:11px; }
+    .session-controls {display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:9px;}
+    .session-controls label {font-size:10px;color:#aebfd6;font-weight:730;white-space:nowrap;}
+    .session-controls select {background:#101b2b;color:#e1ebfc;border:1px solid #3c506a;border-radius:9px;padding:8px 24px 8px 10px;font-size:11px;min-height:35px;max-width:220px;}
+    .session-controls select:focus-visible,.market-chip:focus-visible {outline:2px solid var(--teal);outline-offset:3px;}
+    .broker-clock {border:1px solid #344963;border-radius:9px;padding:8px 10px;font-size:11px;font-variant-numeric:tabular-nums;color:#d7e5f9;font-weight:770;white-space:nowrap;background:#0d1727;}
+    .market-strip {display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;}
+    .market-chip {--chip:#bfcde3; --chip-rgb:180,190,200; min-width:0; display:flex; flex-direction:column; gap:5px; align-items:flex-start; justify-content:center; border-radius:12px; padding:10px 9px; background:#101a2b; color:#dbe5f3; border:1px solid #2f3b50; cursor:pointer; transition:background .15s,border-color .15s,transform .15s; text-align:left; }
+    .market-chip:hover {transform:translateY(-2px);border-color:rgba(var(--chip-rgb),.62);}
+    .market-chip[data-open="true"] {background:linear-gradient(160deg,rgba(var(--chip-rgb),.13),rgba(var(--chip-rgb),.045));border-color:rgba(var(--chip-rgb),.53); box-shadow:inset 0 2px 0 rgba(var(--chip-rgb),.6);}
+    .market-chip[data-open="false"] {opacity:.76;}
+    .market-chip[data-override="true"] {border-style:dashed;}
+    .market-chip-head {display:flex;align-items:center;gap:7px;width:100%;}
+    .market-chip-code {font-size:15px;font-weight:870;color:var(--chip);letter-spacing:.03em;}
+    .market-dot {width:6px;height:6px;border-radius:100%;background:#65758e;margin-left:auto;}
+    .market-chip[data-open="true"] .market-dot {background:#57e7bb;box-shadow:0 0 10px rgba(87,231,187,.65);}
+    .market-chip[data-open="false"] .market-dot {background:#8391a5;}
+    .market-chip-state {font-size:9px;font-weight:850;letter-spacing:.035em;}
+    .market-chip[data-open="true"] .market-chip-state {color:#7af1cb;}
+    .market-chip[data-open="false"] .market-chip-state {color:#9aabc1;}
+    .market-chip-local {color:#93a3bd;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+    .session-board-foot {display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:7px;margin-top:11px;font-size:10px;color:#8598b4;line-height:1.45;}
+    .session-board-foot a,.session-board-foot a:visited {color:#7cebd5;text-decoration:none;border-bottom:1px solid rgba(124,235,213,.38);}
+    .session-board-foot a:hover {color:#d0fff4;}
+    .session-ranking-status {margin:12px 0 0;border-radius:9px;border:1px solid rgba(61,232,191,.18);background:rgba(61,232,191,.06);padding:9px 11px;color:#a9c2cf;font-size:10px;line-height:1.55;}
+    .session-ranking-status strong {color:#dbf9f1;}
+    .rank-open-dot {color:#64e8bd; font-weight:800;}
+    .rank-close-dot {color:#7f90ab;}
+    @media(max-width:1240px){.market-strip{grid-template-columns:repeat(4,minmax(0,1fr));}.session-controls{justify-content:flex-start;}}
+    @media(max-width:680px){.session-board{padding:14px 12px;margin-top:0;margin-bottom:24px;}.market-strip{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}.market-chip{padding:9px 7px;}.market-chip-local{font-size:8px;}.session-controls{width:100%;justify-content:flex-start;}.session-controls select{max-width:100%;flex:1;}.broker-clock{width:100%;text-align:center;}.session-board-top{gap:12px;}}
+    @media print {.session-board{background:#fff;color:#1e2a37;break-inside:avoid;}.market-chip{background:#fff!important;color:#28374a!important;border-color:#bfcbd6;opacity:1!important;}.session-board-sub,.market-chip-local,.session-board-foot{color:#4c5d72;}.session-controls select{background:#fff;color:#233342;}.session-live-tag{color:#08755e;}.session-ranking-status{background:#f0f5f7;color:#233342;}}
+    @media (max-width:1330px) { .main-grid { grid-template-columns:minmax(0,1fr) 305px; gap:15px; } .shell { padding-left:23px; padding-right:23px; } .currency-grid { gap:12px; } .currency-card { padding:15px; } .tf-button { font-size:8.5px; padding:7px 2px; } }
+    @media (max-width:1090px) { .main-grid { grid-template-columns:1fr; } .side-column { position:static;grid-template-columns:1fr 1fr; } .side-column .panel:first-child { grid-row:span 2; } .intro { align-items:flex-start; flex-direction:column; gap:20px; } .toolbar { justify-content:flex-start; } }
+    @media (max-width:680px) { .shell { padding:0 14px 48px; } .topbar { min-height:75px; } .top-online { display:none; } .clock { font-size:10px; } .brand-words strong { font-size:15px; } .intro { padding:28px 0 23px; } .intro h1 { font-size:30px; } .toolbar { width:100%; display:grid; grid-template-columns:repeat(2,1fr); } .btn { padding:9px 8px; } .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin-bottom:25px; } .metric { padding:15px 13px;min-height:130px; } .metric-label { font-size:9px; } .metric-value {font-size:27px; margin-top:9px;} .metric-value small { font-size:12px; } .metric-sub { font-size:10px; } .currency-grid { grid-template-columns:1fr; } .currency-card { padding:17px; } .tf-button { font-size:10px; } .side-column { grid-template-columns:1fr; } .side-column .panel:first-child { grid-row:auto; } .footnote { display:block; } .footnote span { display:block;margin-bottom:6px; } }
+    @media print { :root { color-scheme:light; } body { background:white;color:#182335; } .shell { padding:0; } .topbar,.intro,.toolbar,.metrics,.side-column,.footnote { break-inside:avoid; } .toolbar,.btn,.top-online,.footnote { display:none!important; } .intro { padding:10px 0; } .intro h1 { font-size:25px; } .metric,.currency-card,.panel { background:#fff;color:#182335;box-shadow:none;border-color:#cfd4da; } .metric-label,.metric-sub,.currency-ident p,.notes-top,.card-footer,.section-head p,.panel-descr { color:#526174; } .currency-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .main-grid { display:block; } .side-column { position:static;display:block;margin-top:20px; } .tf-choices { background:#f0f3f8; } .tf-name { color:#25334c; } .comment { color:#162336;background:white;border-color:#d1d9e3; } .currency-card { break-inside:avoid;margin-bottom:10px; } .tf-button { color:#758499; } .tf-button[aria-pressed="true"][data-choice="F"] { background:#d1f6ea;color:#096e59; } .tf-button[aria-pressed="true"][data-choice="W"] { background:#ffe0e5;color:#ad2747; } .tf-button[aria-pressed="true"][data-choice="N"] {background:#e0e7ff;color:#364a9e;} .rank-track { background:#edf0f4; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="ATLAS FX — Início">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 24L11 8L16 18L21 6L28 24" stroke="#70F5D0" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 27H27" stroke="#B3C8FB" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="21" cy="6" r="2.8" fill="#87A1FF"/>
+          </svg>
+        </span>
+        <span class="brand-words"><strong>ATLAS FX</strong><small>CURRENCY INTELLIGENCE</small></span>
+      </a>
+      <div class="top-right">
+        <span class="top-online"><span class="status-dot"></span>100% OFFLINE · ANÁLISE MANUAL</span>
+        <time class="clock" id="clock" aria-label="Data e hora local"></time>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="intro" aria-labelledby="page-heading">
+        <div>
+          <div class="eyebrow">Análise multitemporal · 8 moedas · 5 períodos</div>
+          <h1 id="page-heading">Mapa de <span>força cambial.</span></h1>
+          <p>Classifique cada timeframe com um toque. O ranking e os extremos de força/fraqueza são calculados exclusivamente a partir das suas marcações.</p>
+        </div>
+        <div class="toolbar" aria-label="Ferramentas do painel">
+          <button class="btn btn-primary" type="button" id="loadExample" title="Preencher com as marcações enviadas no exemplo">
+            <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg> Carregar exemplo
+          </button>
+          <button class="btn" type="button" id="exportData" title="Baixar marcações e comentários em JSON">
+            <svg viewBox="0 0 24 24"><path d="M12 3v13m0 0 5-5m-5 5-5-5M4 17v4h16v-4"/></svg> Exportar
+          </button>
+          <button class="btn" type="button" id="importData" title="Importar arquivo JSON exportado anteriormente">
+            <svg viewBox="0 0 24 24"><path d="M12 16V3m0 0 5 5m-5-5L7 8M4 17v4h16v-4"/></svg> Importar
+          </button>
+          <button class="btn btn-danger" type="button" id="resetData" title="Apagar todas as marcações e os comentários">
+            <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m3 0-1 15H6L5 6m5 4v7m4-7v7"/></svg> Limpar
+          </button>
+          <input id="importFile" type="file" accept=".json,application/json" hidden aria-label="Selecionar arquivo JSON">
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Resumo da análise">
+        <article class="metric positive">
+          <div class="metric-label"><span class="sign">↗</span> Moeda mais forte</div>
+          <div class="metric-value" id="strongestValue" aria-live="polite"><span class="metric-empty">—</span></div>
+          <div class="metric-sub" id="strongestCaption">Aguardando marcações de força</div>
+        </article>
+        <article class="metric negative">
+          <div class="metric-label"><span class="sign">↘</span> Moeda mais fraca</div>
+          <div class="metric-value" id="weakestValue" aria-live="polite"><span class="metric-empty">—</span></div>
+          <div class="metric-sub" id="weakestCaption">Aguardando marcações de fraqueza</div>
+        </article>
+        <article class="metric violet">
+          <div class="metric-label"><span class="sign">⇆</span> Diferença entre extremos</div>
+          <div class="metric-value" id="spreadValue"><span class="metric-empty">—</span></div>
+          <div class="metric-sub" id="spreadCaption">Comparação das leituras disponíveis</div>
+        </article>
+        <article class="metric gold">
+          <div class="metric-label"><span class="sign">◎</span> Análise preenchida</div>
+          <div class="metric-value" id="completionValue">0 <small>/ 40</small></div>
+          <div class="metric-sub" id="completionCaption">0% dos timeframes selecionados</div>
+          <div class="meter"><span id="completionBar"></span></div>
+        </article>
+      </section>
+
+
+      <!-- Status por agenda local de cada bolsa: atualizado pelo relógio do navegador,
+           e NÃO por leitura automática da página Market24hClock. -->
+      <section class="session-board" aria-labelledby="session-heading">
+        <div class="session-board-top">
+          <div>
+            <div class="session-board-title"><h2 id="session-heading">Bolsas e sessões por moeda</h2><span class="session-live-tag">ATUALIZAÇÃO AUTOMÁTICA</span></div>
+            <p class="session-board-sub">No empate, bolsas em sessão têm prioridade. Entre elas, vale sua hierarquia fixa de liquidez.</p>
+          </div>
+          <div class="session-controls">
+            <label for="brokerTimezone">Fuso horário da corretora</label>
+            <select id="brokerTimezone" aria-label="Fuso horário da corretora (GMT/UTC)"></select>
+            <time class="broker-clock" id="brokerClock" aria-label="Hora atual estimada da corretora">—</time>
+          </div>
+        </div>
+        <div class="market-strip" id="marketStrip" aria-label="Situação estimada das oito bolsas"></div>
+        <div class="session-board-foot">
+          <span>Horários de pregão local (com horário de verão). Clique em uma moeda para corrigir manualmente a sessão, se houver feriado ou exceção.</span>
+          <span>Referência: <a href="https://market24hclock.com/" target="_blank" rel="noopener noreferrer">Market24hClock ↗</a> · Sem consulta online automática de feriados.</span>
+        </div>
+      </section>
+      <div class="main-grid">
+        <section aria-labelledby="currency-title">
+          <div class="section-head">
+            <div><h2 id="currency-title">Matriz de análise por moeda</h2><p>Selecione FORÇA, FRAQUEZA ou NEUTRO. Clique novamente para desfazer.</p></div>
+            <span class="section-count" id="activeCount">0 / 8 moedas analisadas</span>
+          </div>
+          <nav class="currency-quicknav" aria-label="Ir diretamente para a análise de uma moeda">
+            <a class="currency-tab currency-aud" href="#card-AUD">AUD</a>
+            <a class="currency-tab currency-cad" href="#card-CAD">CAD</a>
+            <a class="currency-tab currency-chf" href="#card-CHF">CHF</a>
+            <a class="currency-tab currency-eur" href="#card-EUR">EUR</a>
+            <a class="currency-tab currency-gbp" href="#card-GBP">GBP</a>
+            <a class="currency-tab currency-jpy" href="#card-JPY">JPY</a>
+            <a class="currency-tab currency-nzd" href="#card-NZD">NZD</a>
+            <a class="currency-tab currency-usd" href="#card-USD">USD</a>
+          </nav>
+          <div class="currency-grid" id="currencyGrid"></div>
+        </section>
+
+        <aside class="side-column" aria-label="Ranking e configurações">
+          <section class="panel" aria-labelledby="ranking-heading">
+            <div class="panel-head"><h2 id="ranking-heading">Ranking de força relativa</h2><span class="live-pill">AO VIVO</span></div>
+            <p class="panel-descr">Pontuação de −100 a +100, baseada nos timeframes marcados.</p>
+            <div class="rank-list" id="ranking" aria-live="polite"></div>
+            <div class="rank-legend"><span><b style="color:var(--rose)">← FRAQUEZA</b></span><span>0 / NEUTRO</span><span><b style="color:var(--teal)">FORÇA →</b></span></div>
+            <p class="ranking-priority"><strong>Desempate dinâmico:</strong> 1º, moedas com bolsa aberta; 2º, JPY › GBP › AUD › NZD › EUR › CHF › USD › CAD. Só muda a ordem quando os scores são iguais, na força e na fraqueza.</p>
+            <div class="session-ranking-status" id="sessionRankingStatus">Verificando horários locais das bolsas…</div>
+            <div class="annotation" id="rankingInsight">Preencha os primeiros timeframes para iniciar a comparação.</div>
+          </section>
+
+          <section class="panel" aria-labelledby="method-heading">
+            <div class="panel-head"><h2 id="method-heading">Método de pontuação</h2><span class="fixed-priority">PESOS IGUAIS</span></div>
+            <p class="panel-descr" style="margin-bottom:8px">Todos os cinco timeframes têm a mesma relevância (20% cada), exibidos na ordem MN, W1, D1, H4 e H1.</p>
+            <div class="panel-info" id="weightSummary">MN 20% · W1 20% · D1 20% · H4 20% · H1 20%</div>
+            <div class="priority-list" id="weightControls" aria-label="Pesos iguais por timeframe"></div>
+            <p class="weight-note">FORÇA = +peso · FRAQUEZA = −peso · NEUTRO = 0. Períodos sem marcação não pontuam. Os pesos são sempre iguais, inclusive ao importar análises antigas.</p>
+          </section>
+
+          <section class="panel help-panel" aria-label="Instruções de utilização">
+            <div class="help-icon" aria-hidden="true">i</div>
+            <div>
+              <h3>Como interpretar</h3>
+              <p>O topo verde indica a maior pontuação positiva e o topo vermelho a menor pontuação negativa. Se houver empate no score, vence primeiro a moeda cuja bolsa esteja em sessão e, entre moedas com o mesmo estado de bolsa, a que estiver mais alta na hierarquia de liquidez. Isto vale tanto na força quanto na fraqueza. Sem polaridade definida, nenhum vencedor é forçado. Resultados parciais são sinalizados.</p>
+              <p style="margin-top:8px">Seus comentários e marcações são salvos neste navegador, quando o armazenamento local está disponível. As sessões são estimadas pelo horário local de cada bolsa, não por um feed do Market24hClock, e podem não refletir feriados ou pregões especiais. A análise não consulta preços nem cotações.</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+      <footer class="footnote"><span id="saveStatus" role="status">Armazenamento local pronto</span><span>ATLAS FX · Painel de análise discricionária · Sem recomendações automáticas de negociação</span></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+    (() => {
+      const CURRENCIES = [
+        { code: 'JPY', name: 'Iene japonês', className: 'currency-jpy' },
+        { code: 'NZD', name: 'Dólar neozelandês', className: 'currency-nzd' },
+        { code: 'AUD', name: 'Dólar australiano', className: 'currency-aud' },
+        { code: 'EUR', name: 'Euro', className: 'currency-eur' },
+        { code: 'GBP', name: 'Libra esterlina', className: 'currency-gbp' },
+        { code: 'CHF', name: 'Franco suíço', className: 'currency-chf' },
+        { code: 'USD', name: 'Dólar americano', className: 'currency-usd' },
+        { code: 'CAD', name: 'Dólar canadense', className: 'currency-cad' }
+      ];
+      // Critério secundário: só é usado quando dois ou mais scores são iguais.
+      const LIQUIDITY_ORDER = Object.freeze(['JPY','GBP','AUD','NZD','EUR','CHF','USD','CAD']);
+      const priorityOf = code => LIQUIDITY_ORDER.indexOf(code);
+      const scoreTied = (a,b) => Math.abs(a-b) < 0.0001;
+      const byLiquidity = (a,b) => priorityOf(a.code)-priorityOf(b.code);
+      // Pregões REGULARES de bolsas associadas às moedas (não horários completos do Forex).
+      // Fonte de referência: https://market24hclock.com/Trading-Hours
+      // Campos em HORÁRIO LOCAL da bolsa (Intl aplica fuso e horário de verão automaticamente).
+      // Feriados e encurtamentos excepcionais não são obtidos automaticamente.
+      const EXCHANGES = Object.freeze({
+        JPY: {name:'JPX · Tóquio', short:'JPX', zone:'Asia/Tokyo', windows:[[540,690],[750,930]]},
+        GBP: {name:'LSE · Londres', short:'LSE', zone:'Europe/London', windows:[[480,990]]},
+        AUD: {name:'ASX · Sydney', short:'ASX', zone:'Australia/Sydney', windows:[[600,960]]},
+        NZD: {name:'NZX · Wellington', short:'NZX', zone:'Pacific/Auckland', windows:[[600,1005]]},
+        EUR: {name:'FWB · Frankfurt', short:'FWB', zone:'Europe/Berlin', windows:[[540,1050]]},
+        CHF: {name:'SIX · Zurique', short:'SIX', zone:'Europe/Zurich', windows:[[540,1050]]},
+        USD: {name:'NYSE · Nova York', short:'NYSE', zone:'America/New_York', windows:[[570,960]]},
+        CAD: {name:'TSX · Toronto', short:'TSX', zone:'America/Toronto', windows:[[570,960]]}
+      });
+      const SESSION_STORAGE = 'atlas-fx-broker-zone-v1';
+      let brokerZone = 'local';
+      const sessionOverrides = Object.create(null); // Não persiste correções manuais para o próximo dia.
+      let currentSessions = Object.create(null);
+      let previousSessionSignature = '';
+      const fmtExchange = Object.fromEntries(LIQUIDITY_ORDER.map(code => [code, new Intl.DateTimeFormat('en-US', {
+        timeZone:EXCHANGES[code].zone,weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+      })]));
+      function exchangeLocal(code, instant) {
+        const values=Object.fromEntries(fmtExchange[code].formatToParts(instant).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
+        const minutes=Number(values.hour)*60+Number(values.minute);
+        const weekday=values.weekday;
+        return { weekday,minutes, clock:values.hour+':'+values.minute };
+      }
+      function marketStatus(code, instant) {
+        const x=exchangeLocal(code,instant);
+        const isWeekday=!['Sat','Sun'].includes(x.weekday);
+        const scheduledOpen=isWeekday && EXCHANGES[code].windows.some(([open,close])=>x.minutes>=open&&x.minutes<close);
+        const overridden=sessionOverrides[code]!==undefined;
+        return {code,open:overridden?sessionOverrides[code]:scheduledOpen,scheduledOpen,overridden,clock:x.clock,exchange:EXCHANGES[code]};
+      }
+      function getMarketSessions(instant=new Date()) {
+        return Object.fromEntries(LIQUIDITY_ORDER.map(code=>[code,marketStatus(code,instant)]));
+      }
+      // Comparador usado SOMENTE entre scores iguais: bolsa aberta antes da fechada;
+      // se ambas no mesmo estado, conserva a hierarquia fixa anterior.
+      const byDynamicLiquidity=(a,b)=>Number(currentSessions[b.code]?.open||false)-Number(currentSessions[a.code]?.open||false)||byLiquidity(a,b);
+      const TFS = ['MN', 'W1', 'D1', 'H4', 'H1'];
+      const OPTIONS = [{ value:'F', text:'FORÇA' }, { value:'W', text:'FRAQUEZA' }, { value:'N', text:'NEUTRO' }];
+      const DEFAULT_WEIGHTS = Object.freeze({ MN:20, W1:20, D1:20, H4:20, H1:20 });
+      const STORAGE_KEY = 'atlas-fx-manual-v1';
+      const MAX_NOTE = 4000;
+      const EXAMPLE = {
+        JPY: { states: ['F','F','F','W','W'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FORÇA. (PODE ACONTECER EM NOVA YORK)' },
+        NZD: { states: ['W','W','N','F','F'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FRAQUEZA' },
+        AUD: { states: ['W','W','W','F','F'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FORÇA. SE ABRIR PARA FORÇA, PODE DAR CONTINUIDADE. SE ABRIR FRAQUEZA, PODE SE FORMAR UMA REVERSÃO' },
+        EUR: { states: ['W','W','W','W','W'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FRAQUEZA PARA DAR CONTINUIDADE PELOS TIMES MAIORES' },
+        GBP: { states: ['W','F','F','F','W'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FRAQUEZA PARA SE FORMAR UMA REVERSÃO.' },
+        CHF: { states: ['W','F','W','F','W'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FORÇA PARA DAR CONTINUIDADE NOS TIMES MAIORES.' },
+        USD: { states: ['F','F','F','W','F'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FORÇA PARA DAR CONTINUIDADE DE ALTA. (MAS SÓ DEVE OCORRER NA ABERTURA DE NOVA YORK).' },
+        CAD: { states: ['N','W','W','W','F'], note: 'VERIFICAR ABERTURA DO D1 PARA VER SE VAI ABRIR PARA FRAQUEZA PARA DAR CONTINUIDADE DE BAIXA.' }
+      };
+
+      const $ = selector => document.querySelector(selector);
+      const byId = id => document.getElementById(id);
+      const createEmpty = () => Object.fromEntries(CURRENCIES.map(c => [c.code, { states: Object.fromEntries(TFS.map(tf=>[tf,null])), note:'' }]));
+      let data = createEmpty();
+      const weights = DEFAULT_WEIGHTS; // Cada timeframe tem peso fixo e igual (20%); ordem de exibição MN, W1, D1, H4, H1.
+      let toastTimer = 0;
+      let saveTimer = 0;
+      const validStates = new Set(['F','W','N']);
+
+      function sanitizeData(raw) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Arquivo inválido.');
+        const source = raw.currencies && typeof raw.currencies === 'object' ? raw.currencies : raw.data;
+        if (!source || typeof source !== 'object') throw new Error('O arquivo não contém dados de moedas.');
+        const cleaned = createEmpty();
+        for (const c of CURRENCIES) {
+          const item = source[c.code];
+          if (!item || typeof item !== 'object') continue;
+          cleaned[c.code].note = typeof item.note === 'string' ? item.note.slice(0,MAX_NOTE) : '';
+          for (const tf of TFS) {
+            const v = item.states && item.states[tf];
+            cleaned[c.code].states[tf] = validStates.has(v) ? v : null;
+          }
+        }
+        // Pesos antigos (de arquivos e do armazenamento local) não podem
+        // substituir os pesos iguais e fixos definidos para esta versão.
+        return { data:cleaned };
+      }
+      function readStorage() {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const restored = sanitizeData(JSON.parse(saved));
+            data = restored.data;
+            byId('saveStatus').textContent = 'Marcações restauradas deste navegador';
+          }
+        } catch (err) {
+          byId('saveStatus').textContent = 'Salvamento automático indisponível: use Exportar para preservar seus dados';
+        }
+      }
+      function persist() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ version:2, currencies:data, weights }));
+          byId('saveStatus').textContent = '✓ Alterações salvas automaticamente neste navegador';
+        } catch (err) {
+          byId('saveStatus').textContent = 'Armazenamento indisponível. Use Exportar para salvar seus dados.';
+        }
+      }
+      function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(persist, 140);
+      }
+      function toast(message) {
+        const el = byId('toast');
+        el.textContent = message;
+        el.classList.add('visible');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(()=>el.classList.remove('visible'), 2700);
+      }
+      function hasContent() {
+        return CURRENCIES.some(c => data[c.code].note.trim() || TFS.some(tf => data[c.code].states[tf]));
+      }
+      function safeConfirm(message) { return !hasContent() || window.confirm(message); }
+      function weightedPercent(tf) {
+        const total = TFS.reduce((acc,k)=>acc+weights[k],0);
+        return total ? (weights[tf]/total)*100 : 0;
+      }
+      function fmtNum(n) { return (Math.abs(n)<0.049 ? 0 : n).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:1}); }
+      function fmtSigned(n) { return n > .049 ? '+'+fmtNum(n) : n < -.049 ? '−'+fmtNum(Math.abs(n)) : '0'; }
+      function currencyStats(code) {
+        const states = data[code].states;
+        let sum = 0, count=0, usedWeight=0;
+        TFS.forEach(tf => {
+          const s=states[tf];
+          if(s!==null) {
+            count++; usedWeight+=weights[tf];
+            sum += weights[tf] * (s==='F'?1:s==='W'?-1:0);
+          }
+        });
+        const total=TFS.reduce((a,tf)=>a+weights[tf],0);
+        const score=total ? sum/total*100 : 0;
+        const coverage=total ? usedWeight/total*100 : 0;
+        return { code, score, count, coverage, states };
+      }
+      function getStats() { return CURRENCIES.map(c=>currencyStats(c.code)); }
+      function getExtremes(stats) {
+        const populated=stats.filter(s=>s.count>0);
+        if (!populated.length) return {strong:[],weak:[],strongTies:[],weakTies:[],spread:null};
+        const positives=populated.filter(s=>s.score>.0001);
+        const negatives=populated.filter(s=>s.score<-.0001);
+        const high=positives.length?Math.max(...positives.map(s=>s.score)):null;
+        const low=negatives.length?Math.min(...negatives.map(s=>s.score)):null;
+        const strongTies=high===null?[]:positives.filter(s=>scoreTied(s.score,high)).sort(byDynamicLiquidity);
+        const weakTies=low===null?[]:negatives.filter(s=>scoreTied(s.score,low)).sort(byDynamicLiquidity);
+        // O desempate não altera o score. Define apenas uma vencedora em cada extremo.
+        const strong=strongTies.length?[strongTies[0]]:[];
+        const weak=weakTies.length?[weakTies[0]]:[];
+        return {strong,weak,strongTies,weakTies,spread:high!==null && low!==null?high-low:null};
+      }
+      function buildCards() {
+        byId('currencyGrid').innerHTML = CURRENCIES.map(c=>`
+          <article class="currency-card ${c.className}" id="card-${c.code}" data-currency="${c.code}" data-trend="none" aria-labelledby="name-${c.code}">
+            <div class="currency-top">
+              <span class="coin currency-badge ${c.className}" aria-hidden="true">${c.code}</span>
+              <div class="currency-ident"><h3 id="name-${c.code}" class="currency-title ${c.className}">${c.code}</h3><p>${c.name}</p></div>
+              <div class="scorebox"><strong class="score-zero" id="score-${c.code}">—</strong><small>SCORE / 100</small></div>
+            </div>
+            <div class="currency-meta"><span id="tag-${c.code}" class="trend-tag">SEM ANÁLISE</span><span id="diag-${c.code}" class="divergence">Nenhum timeframe marcado</span></div>
+            <div class="tf-table" role="group" aria-label="Timeframes da moeda ${c.code}">
+              ${TFS.map(tf=>`
+                <div class="tf-row" role="group" aria-label="${c.code} no ${tf}">
+                  <span class="tf-name" title="${{MN:'Mensal',W1:'Semanal',D1:'Diário',H4:'Quatro horas',H1:'Uma hora'}[tf]}">${tf}</span>
+                  <div class="tf-choices">${OPTIONS.map(o=>`<button class="tf-button" type="button" data-code="${c.code}" data-tf="${tf}" data-choice="${o.value}" aria-label="${c.code} ${tf}: ${o.text}" aria-pressed="false">${o.text}</button>`).join('')}</div>
+                </div>`).join('')}
+            </div>
+            <div class="notes-top"><label for="notes-${c.code}">Observações / cenário operacional</label><small id="len-${c.code}">0 caracteres</small></div>
+            <textarea class="comment" id="notes-${c.code}" maxlength="${MAX_NOTE}" spellcheck="true" placeholder="Sua leitura, hipótese, abertura do D1, confluências..." aria-label="Comentários sobre ${c.code}"></textarea>
+            <div class="card-footer"><span id="filled-${c.code}">0 de 5 timeframes</span><span class="mini-progress" aria-hidden="true"><span id="progress-${c.code}"></span></span></div>
+          </article>`).join('');
+        byId('currencyGrid').addEventListener('click', event => {
+          const btn=event.target.closest('button[data-choice]');
+          if (!btn) return;
+          const {code,tf,choice}=btn.dataset;
+          if (!data[code] || !TFS.includes(tf) || !validStates.has(choice)) return;
+          data[code].states[tf] = data[code].states[tf]===choice ? null : choice;
+          render(); scheduleSave();
+        });
+        byId('currencyGrid').addEventListener('input', event => {
+          if (!event.target.matches('textarea.comment')) return;
+          const code=event.target.id.replace('notes-','');
+          if (!data[code]) return;
+          data[code].note=event.target.value.slice(0,MAX_NOTE);
+          byId('len-'+code).textContent=data[code].note.length+' caracteres';
+          scheduleSave();
+        });
+      }
+      function diagnostics(s) {
+        if(!s.count) return {label:'Nenhum timeframe marcado',warn:false};
+        const d=s.states.D1, h=s.states.H4;
+        if ((d==='F'&&h==='W') || (d==='W'&&h==='F')) return {label:'D1 × H4 divergentes',warn:true};
+        const chosen=TFS.map(tf=>s.states[tf]).filter(Boolean);
+        if(chosen.length===5 && chosen.every(v=>v==='F')) return {label:'Força em todos os períodos',warn:false};
+        if(chosen.length===5 && chosen.every(v=>v==='W')) return {label:'Fraqueza em todos os períodos',warn:false};
+        if(chosen.length===5 && chosen.every(v=>v==='N')) return {label:'Todos os períodos neutros',warn:false};
+        const f=chosen.filter(v=>v==='F').length, w=chosen.filter(v=>v==='W').length;
+        if (f===w && f>0) return {label:'Leitura direcional mista',warn:true};
+        return {label:`${s.count} de 5 períodos avaliados`,warn:false};
+      }
+      function renderCard(s) {
+        const card=byId('card-'+s.code);
+        const trend=s.count===0?'none':s.score>.0001?'positive':s.score<-.0001?'negative':'neutral';
+        card.dataset.trend=trend;
+        const score=byId('score-'+s.code);
+        score.textContent=s.count?fmtSigned(s.score):'—';
+        score.className=s.score>.0001?'score-positive':s.score<-.0001?'score-negative':'score-zero';
+        const tag=byId('tag-'+s.code);
+        tag.textContent=trend==='positive'?'PREDOMÍNIO DE FORÇA':trend==='negative'?'PREDOMÍNIO DE FRAQUEZA':trend==='neutral'?'EQUILÍBRIO / NEUTRO':'SEM ANÁLISE';
+        tag.className='trend-tag'+(trend!=='none'?' '+trend:'');
+        const d=diagnostics(s);
+        byId('diag-'+s.code).textContent=d.label;
+        byId('diag-'+s.code).className='divergence'+(d.warn?' alert':'');
+        TFS.forEach(tf=>{
+          card.querySelectorAll(`button[data-tf="${tf}"]`).forEach(btn=>{
+            btn.setAttribute('aria-pressed',String(s.states[tf]===btn.dataset.choice));
+          });
+        });
+        byId('filled-'+s.code).textContent=`${s.count} de 5 timeframes`;
+        byId('progress-'+s.code).style.width=(s.count/5*100)+'%';
+      }
+      function renderMetrics(stats, extremes) {
+        const selected=stats.reduce((a,s)=>a+s.count,0);
+        const active=stats.filter(s=>s.count>0).length;
+        function writeWinner(kind, winners, tied, captionId) {
+          const val=byId(kind+'Value');
+          const caption=byId(captionId);
+          if(!winners.length) {
+            val.innerHTML='<span class="metric-empty">—</span>';
+            caption.textContent=kind==='strongest'?'Nenhuma pontuação positiva ainda':'Nenhuma pontuação negativa ainda';
+            return;
+          }
+          const s=winners[0];
+          const meta=CURRENCIES.find(item=>item.code===s.code);
+          val.innerHTML=`<span class="currency-label ${meta?.className || ''}">${s.code}</span> <small>${fmtSigned(s.score)}</small>`;
+          caption.textContent=tied.length>1
+            ? `Desempate por sessão${currentSessions[s.code]?.open?' aberta':''} + liquidez: ${s.code} > ${tied.slice(1).map(x=>x.code).join(' / ')} · ${s.count}/5 períodos`
+            : `${s.count}/5 timeframes · ${s.count===5?'análise completa':'resultado provisório'}`;
+        }
+        writeWinner('strongest',extremes.strong,extremes.strongTies,'strongestCaption');
+        writeWinner('weakest',extremes.weak,extremes.weakTies,'weakestCaption');
+        byId('spreadValue').innerHTML=extremes.spread===null?'<span class="metric-empty">—</span>':`<span>${fmtNum(extremes.spread)}</span> <small>pts</small>`;
+        byId('spreadCaption').textContent=extremes.spread===null?'Requer ao menos uma força e uma fraqueza':'Diferença de pontuação entre os dois extremos';
+        byId('completionValue').innerHTML=`${selected} <small>/ 40</small>`;
+        byId('completionCaption').textContent=`${Math.round(selected/40*100)}% dos timeframes selecionados`;
+        byId('completionBar').style.width=(selected/40*100)+'%';
+        byId('activeCount').textContent=`${active} / 8 moedas analisadas`;
+      }
+      function renderRanking(stats, extremes) {
+        // Primeiro ordena por score; no empate usa a ordem de liquidez solicitada.
+        const sorted=[...stats].sort((a,b)=> (b.count>0)-(a.count>0) || (scoreTied(a.score,b.score)?byDynamicLiquidity(a,b):b.score-a.score));
+        byId('ranking').innerHTML=sorted.map((s,index)=>{
+          const zero=s.count===0;
+          const tied=!zero && stats.some(other=>other.code!==s.code && other.count>0 && scoreTied(s.score,other.score));
+          const pos=s.score>.0001, neg=s.score<-.0001;
+          const width=Math.min(50,Math.abs(s.score)/2);
+          const left=pos?50:50-width;
+          const style=`left:${left}%;width:${width}%;`;
+          const scoreColor=pos?'var(--teal)':neg?'var(--rose)':'var(--muted)';
+          const mk=currentSessions[s.code];
+          return `<div class="rank-item ${(CURRENCIES.find(x=>x.code===s.code)?.className)||''}" title="${s.code}: ${s.count}/5 timeframes preenchidos; cobertura de ${fmtNum(s.coverage)}%; ${mk.open?'bolsa aberta':'bolsa fechada'} (${mk.exchange.short})">
+            <span class="rank-num">${String(index+1).padStart(2,'0')}</span>
+            <span class="rank-code ${(CURRENCIES.find(x=>x.code===s.code)?.className)||''}">${s.code}</span>
+            <div class="rank-track" role="img" aria-label="Pontuação ${s.code}: ${zero?'sem dados':fmtSigned(s.score)}"><span class="rank-fill ${pos?'plus':neg?'minus':''}" style="${style}"></span></div>
+            <span class="rank-score" style="color:${scoreColor}">${zero?'—':fmtSigned(s.score)}</span>
+            <span class="rank-coverage">${s.count}/5 períodos · ${fmtNum(s.coverage)}% de cobertura<span class="${mk.open?'rank-open-dot':'rank-close-dot'}"> · ${mk.open?'● bolsa aberta':'bolsa fechada'}</span>${tied?` <span class="rank-tie">· desempate dinâmico</span>`:''}</span>
+          </div>`;
+        }).join('');
+        const total=stats.reduce((a,s)=>a+s.count,0);
+        const strongCodes=extremes.strong.map(s=>s.code).join(' e ');
+        const weakCodes=extremes.weak.map(s=>s.code).join(' e ');
+        let insight='';
+        if(!total) insight='<strong>Análise vazia.</strong> Faça suas marcações para gerar o ranking.';
+        else if(!extremes.strong.length && !extremes.weak.length) insight='<strong>Sem direção definida.</strong> As seleções atuais não produzem polaridade positiva nem negativa.';
+        else if(!extremes.strong.length) insight=`<strong>Somente fraqueza identificada.</strong> ${weakCodes} apresenta a menor pontuação. Não há moeda com pontuação positiva.`;
+        else if(!extremes.weak.length) insight=`<strong>Somente força identificada.</strong> ${strongCodes} apresenta a maior pontuação. Não há moeda com pontuação negativa.`;
+        else insight=`<strong>Maior contraste manual:</strong> ${strongCodes} (força) × ${weakCodes} (fraqueza). ${total<40?'Leitura provisória enquanto houver timeframes em branco.':'Todos os 40 timeframes foram avaliados.'}`;
+        const tieNotes=[];
+        if(extremes.strongTies.length>1) tieNotes.push(`força: ${extremes.strong[0].code} venceu ${extremes.strongTies.slice(1).map(s=>s.code).join(', ')}`);
+        if(extremes.weakTies.length>1) tieNotes.push(`fraqueza: ${extremes.weak[0].code} venceu ${extremes.weakTies.slice(1).map(s=>s.code).join(', ')}`);
+        if(tieNotes.length) insight+=` <strong>Desempate por bolsa em sessão + liquidez:</strong> ${tieNotes.join('; ')}.`;
+        byId('rankingInsight').innerHTML=insight;
+      }
+      function renderWeights() {
+        byId('weightSummary').textContent=TFS.map(tf=>`${tf} ${fmtNum(weightedPercent(tf))}%`).join(' · ');
+      }
+      function render() {
+        currentSessions=getMarketSessions();
+        const stats=getStats();
+        stats.forEach(renderCard);
+        const extremes=getExtremes(stats);
+        renderMetrics(stats,extremes);
+        renderRanking(stats,extremes);
+        renderWeights();
+      }
+      function syncNotes() {
+        CURRENCIES.forEach(c=>{
+          const note=data[c.code].note;
+          byId('notes-'+c.code).value=note;
+          byId('len-'+c.code).textContent=note.length+' caracteres';
+        });
+      }
+      function buildWeightControls() {
+        byId('weightControls').innerHTML=TFS.map((tf,i)=>`
+          <div class="priority-row" title="${tf}: peso igual de ${weights[tf]}% (posição ${i+1} na lista)">
+            <span class="priority-index">${String(i+1).padStart(2,'0')}</span>
+            <span class="priority-tf">${tf}</span>
+            <span class="priority-track" aria-hidden="true"><span class="priority-fill" style="display:block;width:${weightedPercent(tf)/20*100}%"></span></span>
+            <span class="priority-value">${weights[tf]}%</span>
+          </div>`).join('');
+      }
+      function loadExample() {
+        if(!safeConfirm('Carregar o exemplo vai substituir todas as marcações e comentários atuais. Continuar?')) return;
+        data=createEmpty();
+        CURRENCIES.forEach(c=>{
+          const example=EXAMPLE[c.code];
+          TFS.forEach((tf,i)=>data[c.code].states[tf]=example.states[i]);
+          data[c.code].note=example.note;
+        });
+        syncNotes(); render(); persist(); toast('Exemplo carregado: USD mais forte e EUR mais fraco.');
+      }
+      function resetData() {
+        if(!safeConfirm('Limpar todas as marcações e comentários? Esta ação não pode ser desfeita.'))return;
+        data=createEmpty();
+        syncNotes();render();persist();toast('Marcações e comentários limpos.');
+      }
+      function exportData() {
+        const payload={ format:'atlas-fx',version:2,exportedAt:new Date().toISOString(),weights,currencies:data };
+        const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+        const url=URL.createObjectURL(blob);
+        const anchor=document.createElement('a');
+        anchor.href=url;
+        anchor.download='atlas-fx-analise-'+new Date().toISOString().slice(0,10)+'.json';
+        document.body.appendChild(anchor);anchor.click();anchor.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1500);
+        toast('Análise exportada em JSON.');
+      }
+      async function importData(file) {
+        if(!file)return;
+        if (file.size>1000000) { toast('Arquivo muito grande. Selecione um JSON menor que 1 MB.'); return; }
+        if(!safeConfirm('Importar o arquivo vai substituir as marcações e comentários atuais. Continuar?'))return;
+        try {
+          const restored=sanitizeData(JSON.parse(await file.text()));
+          data=restored.data;
+          syncNotes();render();persist();toast('Análise importada com sucesso.');
+        } catch(err) {
+          window.alert('Não foi possível importar: '+(err instanceof Error?err.message:'arquivo inválido'));
+        }
+      }
+
+      function brokerTimeText(now) {
+        let adjusted=now;
+        const isLocal=brokerZone==='local';
+        if(!isLocal) adjusted=new Date(now.getTime()+Number(brokerZone)*60000);
+        const options={weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'};
+        if(!isLocal) options.timeZone='UTC';
+        const formatted=new Intl.DateTimeFormat('pt-BR',options).format(adjusted);
+        const zoneName=isLocal?'SEU NAVEGADOR':fmtBrokerZone(Number(brokerZone));
+        return formatted+' · '+zoneName;
+      }
+      function fmtBrokerZone(offset) {
+        const abs=Math.abs(offset);
+        return 'UTC'+(offset>=0?'+':'−')+String(Math.floor(abs/60)).padStart(2,'0')+':'+String(abs%60).padStart(2,'0');
+      }
+      function initBrokerSelector() {
+        const el=byId('brokerTimezone');
+        const options=[{value:'local',label:'Horário do computador (automático)'}];
+        for(let h=-12;h<=14;h++) {
+          const value=String(h*60);
+          options.push({value,label:fmtBrokerZone(h*60)});
+          if([-10,-9,-4,-3,3,4,5,6,9,10,12].includes(h)) options.push({value:String(h*60+30),label:fmtBrokerZone(h*60+30)});
+        }
+        options.push({value:'345',label:'UTC+05:45'});
+        options.push({value:'525',label:'UTC+08:45'});
+        options.sort((a,b)=>(a.value==='local'?-Infinity:b.value==='local'?Infinity:Number(a.value)-Number(b.value)));
+        el.innerHTML=options.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+        try {const saved=localStorage.getItem(SESSION_STORAGE);if(saved&&options.some(o=>o.value===saved))brokerZone=saved;} catch(_err){}
+        el.value=brokerZone;
+        el.addEventListener('change',()=>{
+          brokerZone=el.value;
+          try{localStorage.setItem(SESSION_STORAGE,brokerZone);}catch(_err){}
+          updateSessions();
+          toast('Relógio da corretora ajustado. Bolsas calculadas pelo horário local de cada mercado.');
+        });
+      }
+      function initMarketStrip() {
+        const el=byId('marketStrip');
+        el.innerHTML=LIQUIDITY_ORDER.map(code=>{
+          const c=CURRENCIES.find(x=>x.code===code);
+          return `<button type="button" class="market-chip ${c.className}" style="--chip:var(--currency);--chip-rgb:var(--currency-rgb)" data-market="${code}" data-open="false" data-override="false" aria-label="Alterar sessão manual da bolsa ${EXCHANGES[code].name}" title="Clique para alternar automático → forçar aberta → forçar fechada → automático">
+              <span class="market-chip-head"><span class="market-chip-code">${code}</span><span class="market-dot"></span></span>
+              <span class="market-chip-state">—</span><span class="market-chip-local">${EXCHANGES[code].short}</span>
+            </button>`;
+        }).join('');
+        el.addEventListener('click',event=>{
+          const chip=event.target.closest('button[data-market]');
+          if(!chip) return;
+          const code=chip.dataset.market;
+          if(!EXCHANGES[code]) return;
+          if(sessionOverrides[code]===undefined) sessionOverrides[code]=true;
+          else if(sessionOverrides[code]===true) sessionOverrides[code]=false;
+          else delete sessionOverrides[code];
+          updateSessions();
+          toast(`${code}: ${sessionOverrides[code]===undefined?'horário automático':sessionOverrides[code]?'abertura manual':'fechamento manual'}.`);
+        });
+      }
+      function updateSessions(now=new Date()) {
+        byId('brokerClock').textContent=brokerTimeText(now);
+        const sessions=getMarketSessions(now);
+        const signature=LIQUIDITY_ORDER.map(code=>String(Number(sessions[code].open))).join('');
+        currentSessions=sessions;
+        LIQUIDITY_ORDER.forEach(code=>{
+          const market=sessions[code];
+          const chip=byId('marketStrip').querySelector(`[data-market="${code}"]`);
+          chip.dataset.open=String(market.open);
+          chip.dataset.override=String(market.overridden);
+          chip.querySelector('.market-chip-state').textContent=(market.open?'ABERTA':'FECHADA')+(market.overridden?' · MANUAL':'');
+          chip.querySelector('.market-chip-local').textContent=`${market.exchange.short} · ${market.clock}`;
+          chip.title=`${market.exchange.name} · ${market.clock} (hora local). ${market.overridden?'Correção manual ativa.':'Horário de pregão regular estimado.'} Clique para alternar o estado.`;
+          chip.setAttribute('aria-pressed',String(market.overridden));
+        });
+        const active=LIQUIDITY_ORDER.filter(code=>sessions[code].open);
+        byId('sessionRankingStatus').innerHTML=active.length
+          ? `<strong>Bolsas em sessão:</strong> ${active.join(' › ')}.<br>Em empate de score, essas moedas passam à frente das demais, seguindo sua prioridade original entre si.`
+          : '<strong>Nenhuma bolsa da lista em sessão.</strong> Empates seguem a ordem fixa original.';
+        if(signature!==previousSessionSignature) {
+          previousSessionSignature=signature;
+          if(byId('currencyGrid').children.length) render();
+        }
+      }
+      function startClock() {
+        const clock=byId('clock');
+        const update=()=>{clock.textContent=new Intl.DateTimeFormat('pt-BR',{weekday:'short',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date()).replace(',',' ·');};
+        update();setInterval(update,30000);
+        updateSessions();setInterval(()=>updateSessions(),15000);
+        document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateSessions();});
+      }
+      function init() {
+        readStorage();
+        buildCards(); buildWeightControls(); initBrokerSelector(); initMarketStrip(); syncNotes(); render(); startClock();
+        byId('loadExample').addEventListener('click',loadExample);
+        byId('resetData').addEventListener('click',resetData);
+        byId('exportData').addEventListener('click',exportData);
+        byId('importData').addEventListener('click',()=>byId('importFile').click());
+        byId('importFile').addEventListener('change',async event=>{
+          const file=event.target.files?.[0];
+          await importData(file);
+          event.target.value='';
+        });
+      }
+      init();
+    })();
+  </script>
+</body>
+</html>
